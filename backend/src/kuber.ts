@@ -35,7 +35,6 @@ export async function submitWithKuber(tx: string) {
     return response.data.cborHex;
   } catch (error: any) {
     const errorMessage = `${error.response.data.type} : ${error.response.data.message}`;
-    console.error("Error fetching data:", errorMessage);
     throw new Error(errorMessage);
   }
 }
