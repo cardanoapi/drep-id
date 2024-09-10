@@ -35,9 +35,10 @@ app.post("/api/submit/tx", express.json(), async (req: any, res: any) => {
 
 // Function to check mint validity
 async function checkMint(req: any) {
-  const platformWallet =
-    "addr_test1qq5kwcc5c8q3vhe5x6vfmmwh0mgjtqemw3ayd46a0tke6w0vxagpfl0ukvhqjrs24an3esu663pzgq7dqqggj3eq6neq4wv8z3";
-  //   (await generateWallet()).addressBech32(0);
+  const platformWallet = await generateWallet();
+  const platformAddress = platformWallet.addressBech32(0);
+  // ("addr_test1qq5kwcc5c8q3vhe5x6vfmmwh0mgjtqemw3ayd46a0tke6w0vxagpfl0ukvhqjrs24an3esu663pzgq7dqqggj3eq6neq4wv8z3");
+
   // validate proper mint amount
   const mint = req.mint;
   if (!mint || mint.length !== 1) {
@@ -70,22 +71,63 @@ async function checkMint(req: any) {
 
   // validate no selections from platform address
   const selections = req.selections;
-  if (selections.includes(platformWallet)) {
+  if (selections.includes(platformAddress)) {
     ERR.NoSelections();
   }
 
   // validate no inputs from platform address
   const inputs = req.inputs;
-  const platformInputs = await fetchUTxOData(platformWallet);
+  const platformInputs = await fetchUTxOData(platformAddress);
   inputs.forEach((input: string) => {
     if (platformInputs.includes(input)) {
       ERR.NoInputs();
     }
   });
 
+  //validate no collateral from platform address
+  const collaterals = req.collaterals;
+  collaterals.forEach((collateral: string) => {
+    if (platformInputs.includes(collateral)) {
+      ERR.NoCollaterals();
+    }
+  });
+
   // validate other fields
+  const allowedFields = [
+    "inputs",
+    "mint",
+    "outputs",
+    "selections",
+    "signatures",
+    "collaterals",
+    "fee",
+  ];
+  const reqFields = Object.keys(req);
+  const isValid =
+    reqFields.every((field) => allowedFields.includes(field)) &&
+    reqFields.length === allowedFields.length;
+  if (!isValid) {
+    ERR.InvalidField(reqFields, allowedFields);
+  }
+
+  // validate platform paid
+  const hasValidPlatformFee = req.outputs.some((output: any) => {
+    if (output.address === platformAddress) {
+      if (output.value.lovelace > 0) {
+        return true;
+      } else {
+        ERR.PlatformNotPaid(platformAddress);
+      }
+    }
+    return false;
+  });
+  if (!hasValidPlatformFee) {
+    ERR.PlatformNotPaid(platformAddress);
+  }
 
   // sign the transaction
+
+  console.log("ALL GOOD");
 }
 
 // Start the server
