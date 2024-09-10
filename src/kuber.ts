@@ -21,3 +21,21 @@ export async function fetchTxCbor(tx: any) {
     throw new Error(errorMessage);
   }
 }
+
+export async function submitWithKuber(tx: string) {
+  try {
+    const txData = JSON.stringify({
+      tx: {
+        description: "",
+        type: "Tx ConwayEra",
+        cborHex: tx,
+      },
+    });
+    const response = await apiClient.post(`/api/v1/tx/submit`, txData);
+    return response.data.cborHex;
+  } catch (error: any) {
+    const errorMessage = `${error.response.data.type} : ${error.response.data.message}`;
+    console.error("Error fetching data:", errorMessage);
+    throw new Error(errorMessage);
+  }
+}

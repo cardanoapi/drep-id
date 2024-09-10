@@ -18,9 +18,8 @@ export async function fetchAssetData(assetId: string) {
     if (error.response && error.response.status === 404) {
       return true;
     } else {
-      // Handle other errors
       console.error("Error fetching data:", error.message);
-      throw error; // Rethrow the error if it is not a 404
+      throw error;
     }
   }
 }
