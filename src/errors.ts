@@ -3,7 +3,11 @@ export function InvalidMintData() {
 }
 
 export function AlreadyRegistered(dRepName: string) {
-  throw new Error(`You have already registered as ${dRepName}`);
+  throw new Error(
+    `You have already registered as ${Buffer.from(dRepName, "hex").toString(
+      "utf-8"
+    )}`
+  );
 }
 
 export function NoSelections() {
@@ -18,11 +22,8 @@ export function NoCollaterals() {
   throw new Error("No collateral inputs allowed from platform address");
 }
 
-export function InvalidField(fields: string[], allowedFields: string[]) {
-  const invalidFields = fields.filter(
-    (field) => !allowedFields.includes(field)
-  );
-  throw new Error(`Encountered Invalid Tx Fields: ${invalidFields}`);
+export function InvalidField() {
+  throw new Error(`Encountered Invalid Tx Fields`);
 }
 
 export function PlatformNotPaid(address: string) {
@@ -31,4 +32,12 @@ export function PlatformNotPaid(address: string) {
 
 export function MissingOutput() {
   throw new Error(`Transaction Missing Output`);
+}
+
+export function MissingNetwork() {
+  throw new Error(`Missing NETWORK in .env`);
+}
+
+export function InvalidNetwork() {
+  throw new Error(`Invalid Network: Expected 0 for testnet or 1 for mainnet`);
 }
