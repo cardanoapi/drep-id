@@ -28,3 +28,7 @@ export function InvalidField(fields: string[], allowedFields: string[]) {
 export function PlatformNotPaid(address: string) {
   throw new Error(`Please make a contribution to ${address}`);
 }
+
+export function MissingOutput() {
+  throw new Error(`Transaction Missing Output`);
+}

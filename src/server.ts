@@ -36,8 +36,9 @@ app.post("/api/submit/tx", express.json(), async (req: any, res: any) => {
 // Function to check mint validity
 async function checkMint(req: any) {
   const platformWallet = await generateWallet();
-  const platformAddress = platformWallet.addressBech32(0);
-  // ("addr_test1qq5kwcc5c8q3vhe5x6vfmmwh0mgjtqemw3ayd46a0tke6w0vxagpfl0ukvhqjrs24an3esu663pzgq7dqqggj3eq6neq4wv8z3");
+  const platformAddress =
+    // platformWallet.addressBech32(0);
+    "addr_test1qq5kwcc5c8q3vhe5x6vfmmwh0mgjtqemw3ayd46a0tke6w0vxagpfl0ukvhqjrs24an3esu663pzgq7dqqggj3eq6neq4wv8z3";
 
   // validate proper mint amount
   const mint = req.mint;
@@ -52,7 +53,9 @@ async function checkMint(req: any) {
     !amount ||
     Object.keys(amount).length !== 1 ||
     Object.values(amount)[0] !== 1 ||
-    !validMint.script.keyHash
+    !validMint.script.keyHash ||
+    !validMint.script.type ||
+    validMint.script.type !== "sig"
   ) {
     ERR.InvalidMintData();
     return;
@@ -71,23 +74,23 @@ async function checkMint(req: any) {
 
   // validate no selections from platform address
   const selections = req.selections;
-  if (selections.includes(platformAddress)) {
+  if (selections?.includes(platformAddress)) {
     ERR.NoSelections();
   }
 
   // validate no inputs from platform address
   const inputs = req.inputs;
   const platformInputs = await fetchUTxOData(platformAddress);
-  inputs.forEach((input: string) => {
-    if (platformInputs.includes(input)) {
+  inputs?.forEach((input: string) => {
+    if (platformInputs?.includes(input)) {
       ERR.NoInputs();
     }
   });
 
   //validate no collateral from platform address
   const collaterals = req.collaterals;
-  collaterals.forEach((collateral: string) => {
-    if (platformInputs.includes(collateral)) {
+  collaterals?.forEach((collateral: string) => {
+    if (platformInputs?.includes(collateral)) {
       ERR.NoCollaterals();
     }
   });
@@ -103,17 +106,17 @@ async function checkMint(req: any) {
     "fee",
   ];
   const reqFields = Object.keys(req);
-  const isValid =
-    reqFields.every((field) => allowedFields.includes(field)) &&
-    reqFields.length === allowedFields.length;
+  const isValid = reqFields.every((field) => allowedFields.includes(field));
   if (!isValid) {
     ERR.InvalidField(reqFields, allowedFields);
   }
 
   // validate platform paid
+  if (!req.outputs) ERR.MissingOutput();
   const hasValidPlatformFee = req.outputs.some((output: any) => {
     if (output.address === platformAddress) {
       if (output.value.lovelace > 0) {
+        return true;
         return true;
       } else {
         ERR.PlatformNotPaid(platformAddress);
