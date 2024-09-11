@@ -1,6 +1,5 @@
 import axios from "axios";
 import * as ERR from "./errors";
-import { DRep } from "@emurgo/cardano-serialization-lib-nodejs";
 import { Drep } from "./server";
 
 require("dotenv").config();
@@ -64,6 +63,12 @@ export async function findDrepMetadata(dRep: Drep) {
       );
       const filteredMetadata = assetMetadata.filter(Boolean);
       const drepMetadata: any[] = [];
+      if ("id" in dRep) {
+        const drepMetadataBlockfrost: any = await apiClient.get(
+          `/api/v0/governance/dreps/${dRep.id}/metadata`
+        );
+        drepMetadata.push(drepMetadataBlockfrost.data);
+      }
       filteredMetadata.forEach((md) => {
         if ("id" in dRep) {
           if (md.drepId == dRep.id) {
