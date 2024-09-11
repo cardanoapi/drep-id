@@ -60,7 +60,7 @@ app.use(
 );
 
 // Route to submit transaction
-app.post("/api/submit/tx", express.json(), async (req: any, res: any) => {
+app.post("/api/register", express.json(), async (req: any, res: any) => {
   try {
     await checkMint(req.body);
     res.sendStatus(200);
