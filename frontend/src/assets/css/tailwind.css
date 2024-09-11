@@ -2,8 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+.h1 {
+  @apply text-[64px] leading-[96px];
+}
+
+.h2 {
+  @apply text-[56px] leading-[84px];
+}
+
+h3 {
+  @apply text-[32px] leading-[48px];
+}
+
 .h4 {
   @apply font-bold text-[24px] leading-[36px];
+}
+
+.body1 {
+  @apply text-[20px] leading-[30px];
+}
+
+.body2 {
+  @apply text-[18px] leading-[27px];
 }
 
 .body3 {
