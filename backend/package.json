@@ -3,7 +3,8 @@
     "version": "1.0.0",
     "main": "src/server.ts",
     "scripts": {
-        "start": "ts-node src/server.ts"
+        "start": "ts-node src/server.ts",
+        "build": "tsc"
     },
     "dependencies": {
         "@emurgo/cardano-serialization-lib-nodejs": "^12.0.1",
