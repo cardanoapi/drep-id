@@ -34,10 +34,6 @@ export function MissingOutput() {
   throw new Error(`Transaction Missing Output`);
 }
 
-export function MissingNetwork() {
-  throw new Error(`Missing NETWORK in .env`);
-}
-
 export function InvalidNetwork() {
   throw new Error(`Invalid Network: Expected 0 for testnet or 1 for mainnet`);
 }
@@ -54,4 +50,16 @@ export function InvalidPolicyInMetadata(expected: string, got: string) {
 
 export function InvalidMetadataAssetName(asset_name: string, name: string) {
   throw new Error(`Expected Same Assetname. Either ${asset_name} or ${name}`);
+}
+
+export function MissingDRepId() {
+  throw new Error(`Missing Field drepId in Metadata`);
+}
+
+export function InvalidDrepId() {
+  throw new Error(`Invalid drepId in Metadata`);
+}
+
+export function MissingEnvVariable(env: string){
+  throw new Error(`Missing environment variable: ${env}`);
 }

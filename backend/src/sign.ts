@@ -28,6 +28,5 @@ export async function signTx(tx: string, wallet: ShelleyWallet) {
   ];
 
   witness.set(0, vkeyWitnesses);
-
   return Buffer.from(cborBackend.encode(witness)).toString("hex");
 }

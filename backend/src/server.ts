@@ -5,7 +5,7 @@ import {
   cborBackend,
 } from "libcardano";
 import { setup } from "libcardano/lib/cardano/crypto";
-import { fetchAssetData, fetchUTxOData } from "./blockfrost";
+import { fetchAssetData, fetchUTxOData, findDrepMetadata } from "./blockfrost";
 import { getPolicy } from "./policyId";
 import * as ERR from "./errors";
 import { submitWithKuber } from "./kuber";
@@ -14,11 +14,7 @@ import { parseTxWitness } from "libcardano/cardano/ledger-serialization/txWitnes
 import { signTx } from "./sign";
 import cors from "cors";
 import express from "express";
-import {
-  Value,
-  parseValue,
-} from "libcardano/cardano/ledger-serialization/value";
-import { parseAuxData } from "libcardano/cardano/ledger-serialization/auxiliary-data";
+import * as blake from "blakejs";
 
 require("dotenv").config();
 const app = express();
@@ -38,7 +34,7 @@ async function generateWallet() {
     );
     return platformWallet;
   } else {
-    throw new Error("Missing Environment Variable: PAYMENT_KEY or STAKE_KEY");
+    throw ERR.MissingEnvVariable("PAYMENT_KEY or STAKE_KEY");
   }
 }
 
@@ -50,7 +46,7 @@ async function generateAddress(addr_bytes: Buffer) {
 
 function getNetworkId(): number {
   if (!NETWORK) {
-    ERR.MissingNetwork();
+    ERR.MissingEnvVariable("NETWORK");
   }
   const netId = parseInt(NETWORK as string);
   if (netId == 0 || netId == 1) return netId;
@@ -71,6 +67,8 @@ type Request = {
   type: string;
 };
 
+export type Drep = { name: string } | { id: string };
+
 // Route to submit transaction
 app.post("/api/register", express.json(), async (req: any, res: any) => {
   try {
@@ -81,6 +79,44 @@ app.post("/api/register", express.json(), async (req: any, res: any) => {
     res.status(400).send({ error: error.message || "Bad Request" });
   }
 });
+
+app.get("/api/drep", async (req: any, res: any) => {
+  try {
+    const drepId = req.query.id;
+    const drepName = req.query.name;
+
+    if (!drepId && !drepName) {
+      return res
+        .status(400)
+        .send({ error: "Missing drepId or drepName in query" });
+    }
+
+    let metadata: any;
+    let drep: Drep;
+    if (drepId) {
+      drep = { id: drepId };
+    } else if (drepName) {
+      drep = { name: drepName };
+    } else {
+      throw new Error(
+        "Unexpected state: Neither drepId nor drepName is provided"
+      );
+    }
+    metadata = await findDrep(drep);
+    if (!res.headersSent) {
+      res.status(200).json(metadata);
+    }
+  } catch (error: any) {
+    console.error("Error:", error);
+    res.status(400).send({ error: error.message || "Bad Request" });
+  }
+});
+
+// find DRep
+async function findDrep(req: Drep) {
+  const metadata = await findDrepMetadata(req);
+  return metadata;
+}
 
 // Function to check registration validation
 async function checkDRepRegistration(req: Request) {
@@ -120,10 +156,11 @@ async function checkDRepRegistration(req: Request) {
   // validate unique mint
   const drepName = validMint.amount[0].tokenName;
   const policy = getPolicy(txWitnesses.nativeScripts[0].addrKeyHash);
-  const assetData = await fetchAssetData(policy + drepName);
-  if (assetData == 200) {
+  const assetData: any = await fetchAssetData(policy + drepName);
+  if (assetData.status == 200) {
     ERR.AlreadyRegistered(drepName);
     return;
+  } else {
   }
 
   // validate other fields
@@ -183,6 +220,17 @@ async function checkDRepRegistration(req: Request) {
     const metadataAssetName = metadataAssetMap
       .get(metadataAssetInfo)
       .get("name");
+    if (!metadataAssetMap.get(metadataAssetInfo).get("drepId")) {
+      ERR.MissingDRepId();
+    }
+    const drepId = metadataAssetMap.get(metadataAssetInfo).get("drepId");
+    if (
+      (drepId.length != 56 && drepId.length != 58) ||
+      drepId.slice(0, 4) != "drep"
+    ) {
+      ERR.InvalidDrepId();
+    }
+
     if (metadataAssetName !== metadataAssetInfo) {
       ERR.InvalidMetadataAssetName(metadataAssetName, metadataAssetInfo);
     }
@@ -203,7 +251,16 @@ async function checkDRepRegistration(req: Request) {
   txCbor[1].set(0, combinedWitness);
   const finalTx = cborBackend.encode(txCbor).toString("hex");
   await submitWithKuber(finalTx);
-  console.log("Submitted");
+  console.log(
+    "Submitted: " +
+      Buffer.from(
+        blake.blake2b(
+          Uint8Array.from(cborBackend.encode(txCbor[0])),
+          undefined,
+          32
+        )
+      ).toString("hex")
+  );
 }
 
 // Start the server
