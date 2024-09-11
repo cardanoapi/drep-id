@@ -21,15 +21,19 @@ const app = express();
 const PORT = process.env.SOCKET_PORT || 3000;
 const NETWORK = process.env.NETWORK;
 const PAYMENT_KEY = process.env.PAYMENT_KEY;
-
-
+const platformAddressBech32 = process.env.TREASURY_ADDRESS;
+function getPlatformAddress(): string {
+  if (platformAddressBech32) {
+    return platformAddressBech32;
+  } else {
+    throw ERR.MissingEnvVariable("TREASURY_ADDRESS");
+  }
+}
 async function generateWallet() {
   await setup();
   if (PAYMENT_KEY) {
     const ed25519PaymentKey = await Ed25519Key.fromPrivateKeyHex(PAYMENT_KEY);
-    const platformWallet = new ShelleyWallet(
-      ed25519PaymentKey,
-    );
+    const platformWallet = new ShelleyWallet(ed25519PaymentKey);
     return platformWallet;
   } else {
     throw ERR.MissingEnvVariable("PAYMENT_KEY");
@@ -125,8 +129,6 @@ async function checkDRepRegistration(req: Request) {
     }, 500);
   });
 
-  const platformAddress = process.env.TREASURY_ADDRESS;
-
   const txCbor = cborBackend.decode(Buffer.from(req.cborHex, "hex"));
   const txBody = parseTxBody(txCbor[0]);
   const txWitnesses = parseTxWitness(txCbor[1]);
@@ -184,7 +186,7 @@ async function checkDRepRegistration(req: Request) {
           const outputAddress = output[0];
           const shelleyAddress = ShelleyAddress.fromRawBytes(outputAddress);
           const bech32 = shelleyAddress.toBech32();
-          if (bech32 === platformAddress) {
+          if (bech32 === getPlatformAddress()) {
             if (
               (typeof output[1] == "number" || typeof output[1] == "bigint") &&
               output[1] >= 1000000
@@ -197,7 +199,7 @@ async function checkDRepRegistration(req: Request) {
     )
   ).filter(Boolean);
   if (platformOutputs.length === 0) {
-    ERR.PlatformNotPaid(platformAddress);
+    ERR.PlatformNotPaid(getPlatformAddress());
   }
 
   //validate metadata
