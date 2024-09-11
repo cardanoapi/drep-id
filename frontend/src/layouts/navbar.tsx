@@ -7,9 +7,13 @@ import Burger from "@src/components/icons/burger";
 function Navbar() {
   const [isMenuVisible, setMenuVisible] = useState(false);
   return (
-    <nav className="relative top-0 !z-30 flex h-[100px] w-full flex-col items-center justify-center border-b border-border-primary bg-primary-900 text-white px-6 sm:px-10">
-      <div className="flex w-full max-w-[1440px] items-center justify-between gap-10">
-        <AnchorLink className="h4" href="/" aria-label="navigate to landing page">
+    <nav className="relative top-0 !z-30 flex h-[100px] w-full flex-col items-center justify-center bg-primary-900 text-white ">
+      <div className="flex w-full max-w-[1440px] px-6 sm:px-[96px] items-center justify-between gap-10">
+        <AnchorLink
+          className="h4"
+          href="/"
+          aria-label="navigate to landing page"
+        >
           DRepID
         </AnchorLink>
         <div className="body3 hidden items-center gap-10 text-text-primary sm:flex">

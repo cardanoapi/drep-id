@@ -4,8 +4,8 @@ import NepalFlag from "@src/components/icons/nepal";
 
 export default function Footer() {
   return (
-    <div className="flex h-[144px] w-full items-center justify-center px-6 sm:px-10">
-      <div className="body3 !font-normal flex w-full max-w-[1440px] flex-wrap items-center justify-between gap-2 text-neutral-700 sm:gap-6">
+    <div className="flex h-[144px] w-full items-center justify-center ">
+      <div className="body3 !font-normal flex w-full max-w-[1440px] flex-wrap items-center justify-between gap-2 text-neutral-700 sm:gap-6 px-6 sm:px-[96px]">
         <p> &copy; 2024 Sireto Technology. All rights reserved.</p>
         <div className="flex gap-1 items-center">
           <span>Build with</span> <Love /> <span>from</span> <NepalFlag />
