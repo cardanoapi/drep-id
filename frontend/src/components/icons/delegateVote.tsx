@@ -36,8 +36,8 @@ export default function DelegateVoteIcon(props: React.SVGAttributes<{}>) {
           y2="100"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="#0028FF" />
-          <stop offset="1" stop-color="#040D43" />
+          <stop stopColor="#0028FF" />
+          <stop offset="1" stopColor="#040D43" />
         </linearGradient>
         <image
           id="image0_31_31"
