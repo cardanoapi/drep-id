@@ -10,7 +10,7 @@
   @apply text-[56px] leading-[84px];
 }
 
-h3 {
+.h3 {
   @apply text-[32px] leading-[48px];
 }
 
