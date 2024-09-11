@@ -19,7 +19,7 @@ export default function Layout({
       <main
         className={cn(
           `flex h-full min-h-calc-244 w-full flex-col items-center justify-center bg-white`,
-          className
+          className,
         )}
       >
         {children}

@@ -1,1 +1,1 @@
-export { Dialog } from '@headlessui/react';
+export { Dialog } from "@headlessui/react";
