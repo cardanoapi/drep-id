@@ -8,12 +8,17 @@ import { setup } from "libcardano/lib/cardano/crypto";
 import { fetchAssetData, fetchUTxOData } from "./blockfrost";
 import { getPolicy } from "./policyId";
 import * as ERR from "./errors";
-import { fetchTxCbor, submitWithKuber } from "./kuber";
+import { submitWithKuber } from "./kuber";
 import { parseTxBody } from "libcardano/cardano/ledger-serialization/txBody";
 import { parseTxWitness } from "libcardano/cardano/ledger-serialization/txWitnessSet";
 import { signTx } from "./sign";
 import cors from "cors";
 import express from "express";
+import {
+  Value,
+  parseValue,
+} from "libcardano/cardano/ledger-serialization/value";
+import { parseAuxData } from "libcardano/cardano/ledger-serialization/auxiliary-data";
 
 require("dotenv").config();
 const app = express();
@@ -59,10 +64,17 @@ app.use(
   })
 );
 
+type Request = {
+  cborHex: string;
+  description: string;
+  hash: string;
+  type: string;
+};
+
 // Route to submit transaction
 app.post("/api/register", express.json(), async (req: any, res: any) => {
   try {
-    await checkMint(req.body);
+    await checkDRepRegistration(req.body);
     res.sendStatus(200);
   } catch (error: any) {
     console.error("Error:", error);
@@ -70,8 +82,8 @@ app.post("/api/register", express.json(), async (req: any, res: any) => {
   }
 });
 
-// Function to check mint validity
-async function checkMint(req: Record<any, any>) {
+// Function to check registration validation
+async function checkDRepRegistration(req: Request) {
   const platformWallet: ShelleyWallet = await new Promise((resolve) => {
     setTimeout(async () => {
       const wallet = await generateWallet();
@@ -81,11 +93,7 @@ async function checkMint(req: Record<any, any>) {
 
   const platformAddress = platformWallet.addressBech32(getNetworkId());
 
-  await validateTxJson(req, platformAddress);
-
-  // using libcardano
-
-  const txCbor = cborBackend.decode(Buffer.from(await fetchTxCbor(req), "hex"));
+  const txCbor = cborBackend.decode(Buffer.from(req.cborHex, "hex"));
   const txBody = parseTxBody(txCbor[0]);
   const txWitnesses = parseTxWitness(txCbor[1]);
 
@@ -111,8 +119,8 @@ async function checkMint(req: Record<any, any>) {
 
   // validate unique mint
   const drepName = validMint.amount[0].tokenName;
-  const policy = getPolicy(txWitnesses.nativeScripts[0].addrKeyHash) + drepName;
-  const assetData = await fetchAssetData(policy);
+  const policy = getPolicy(txWitnesses.nativeScripts[0].addrKeyHash);
+  const assetData = await fetchAssetData(policy + drepName);
   if (assetData == 200) {
     ERR.AlreadyRegistered(drepName);
     return;
@@ -122,7 +130,6 @@ async function checkMint(req: Record<any, any>) {
   const invalidFields =
     !txBody.certificates &&
     !txBody.withdrawals &&
-    !txBody.auxDataHash &&
     !txBody.scriptDataHash &&
     !txBody.votingProcedures &&
     !txBody.proposalProcedures &&
@@ -137,25 +144,53 @@ async function checkMint(req: Record<any, any>) {
   const outputs = txCbor[0].get(1);
   const platformOutputs = (
     await Promise.all(
-      outputs.map(async (output: any[]) => {
-        const outputAddress = output[0];
-        const shelleyAddress = await generateAddress(outputAddress);
-        const bech32 = shelleyAddress.toBech32();
-
-        if (bech32 === platformAddress && output[1] > 0) {
-          return output;
+      outputs.map(async (output: any) => {
+        if (Array.isArray(output)) {
+          const outputAddress = output[0];
+          const shelleyAddress = await generateAddress(outputAddress);
+          const bech32 = shelleyAddress.toBech32();
+          if (bech32 === platformAddress) {
+            if (
+              (typeof output[1] == "number" || typeof output[1] == "bigint") &&
+              output[1] >= 1000000
+            )
+              return output;
+          }
+          return null;
         }
-        return null;
       })
     )
   ).filter(Boolean);
   if (platformOutputs.length === 0) {
     ERR.PlatformNotPaid(platformAddress);
   }
-  const platformSignature = await signTx(
-    await fetchTxCbor(req),
-    platformWallet
-  );
+
+  //validate metadata
+  try {
+    const metadata = txCbor[3].value.get(0).get(721);
+    if (metadata.size != 1) {
+      ERR.SingleMetadata();
+    }
+    const metadataObj = Object.fromEntries(metadata);
+    const metadataPolicyInfo = Object.keys(metadataObj)[0];
+    if (metadataPolicyInfo != policy) {
+      ERR.InvalidPolicyInMetadata(policy, metadataPolicyInfo);
+    }
+    const metadataAssetMap = metadata.get(metadataPolicyInfo);
+    const metadataAssetInfo = Object.keys(
+      Object.fromEntries(metadataAssetMap)
+    )[0];
+    const metadataAssetName = metadataAssetMap
+      .get(metadataAssetInfo)
+      .get("name");
+    if (metadataAssetName !== metadataAssetInfo) {
+      ERR.InvalidMetadataAssetName(metadataAssetName, metadataAssetInfo);
+    }
+  } catch (error: any) {
+    throw new Error("Invalid Metadata: " + error.message);
+  }
+
+  const platformSignature = await signTx(req.cborHex, platformWallet);
   const signatureBuffer = cborBackend
     .decode(Buffer.from(platformSignature, "hex"))
     .get(0);
@@ -168,31 +203,7 @@ async function checkMint(req: Record<any, any>) {
   txCbor[1].set(0, combinedWitness);
   const finalTx = cborBackend.encode(txCbor).toString("hex");
   await submitWithKuber(finalTx);
-}
-
-async function validateTxJson(req: Record<any, any>, platformAddress: string) {
-  // validate no selections from platform address
-  const selections = req.selections;
-  if (selections?.includes(platformAddress)) {
-    ERR.NoSelections();
-  }
-
-  // validate no inputs from platform address
-  const inputs = req.inputs;
-  const platformInputs = await fetchUTxOData(platformAddress);
-  inputs?.forEach((input: string) => {
-    if (platformInputs?.includes(input)) {
-      ERR.NoInputs();
-    }
-  });
-
-  //validate no collateral from platform address
-  const collaterals = req.collaterals;
-  collaterals?.forEach((collateral: string) => {
-    if (platformInputs?.includes(collateral)) {
-      ERR.NoCollaterals();
-    }
-  });
+  console.log("Submitted");
 }
 
 // Start the server

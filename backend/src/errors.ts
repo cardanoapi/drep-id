@@ -27,7 +27,7 @@ export function InvalidField() {
 }
 
 export function PlatformNotPaid(address: string) {
-  throw new Error(`Please make a contribution to ${address}`);
+  throw new Error(`Please make a contribution of atlease 1 Ada to ${address}`);
 }
 
 export function MissingOutput() {
@@ -40,4 +40,18 @@ export function MissingNetwork() {
 
 export function InvalidNetwork() {
   throw new Error(`Invalid Network: Expected 0 for testnet or 1 for mainnet`);
+}
+
+export function SingleMetadata() {
+  throw new Error(`Expected Single Metadata`);
+}
+
+export function InvalidPolicyInMetadata(expected: string, got: string) {
+  throw new Error(
+    `Invalid Policy in Metadata: Expected: ${expected}; Got: ${got} `
+  );
+}
+
+export function InvalidMetadataAssetName(asset_name: string, name: string) {
+  throw new Error(`Expected Same Assetname. Either ${asset_name} or ${name}`);
 }
