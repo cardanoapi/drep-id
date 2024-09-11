@@ -1,4 +1,5 @@
 import Banner from "@src/components/landing-sections/banner";
+import Features from "@src/components/landing-sections/features";
 import HowItWorks from "@src/components/landing-sections/howItWorks";
 
 export default function Home() {
@@ -6,6 +7,7 @@ export default function Home() {
     <div className="h-full w-full ">
       <Banner />
       <HowItWorks />
+      <Features />
     </div>
   );
 }
