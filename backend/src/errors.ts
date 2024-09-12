@@ -59,7 +59,7 @@ export function MissingDRepId() {
 }
 
 export function InvalidDrepId() {
-  throw new Error(`Invalid or Missing foeld "drepId" in Metadata`);
+  throw new Error(`Invalid or Missing field "drepId" in Metadata`);
 }
 
 export function MissingEnvVariable(env: string) {

@@ -4,6 +4,8 @@ import {
   ShelleyWallet,
   cborBackend,
 } from "libcardano";
+import swaggerJsdoc from "swagger-jsdoc";
+import swaggerUi from "swagger-ui-express";
 import { setup } from "libcardano/lib/cardano/crypto";
 import { fetchAssetData, findDrepMetadata } from "./blockfrost";
 import { getPolicy } from "./policyId";
@@ -15,6 +17,7 @@ import { signTx } from "./sign";
 import cors from "cors";
 import express from "express";
 import * as blake from "blakejs";
+import { swaggerSpec } from "./swaggerConfig";
 
 require("dotenv").config();
 const app = express();
@@ -63,16 +66,45 @@ app.use(
   })
 );
 
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 type Request = {
   cborHex: string;
-  description: string;
-  hash: string;
-  type: string;
 };
 
 export type Drep = { name: string } | { id: string };
 
 // Route to submit transaction
+/**
+ * @swagger
+ * /api/register:
+ *   post:
+ *     summary: Register DRep by minting a token
+ *     description: Submit a transaction to create a DRep profile by minting a Token.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               cborHex:
+ *                 type: string
+ *                 description: CBOR-encoded transaction hex
+ *     responses:
+ *       200:
+ *         description: Transaction submitted successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 txHash:
+ *                   type: string
+ *                   description: Hash of the submitted transaction
+ *       400:
+ *         description: Bad Request - Invalid transaction data.
+ */
 app.post("/api/register", express.json(), async (req: any, res: any) => {
   try {
     const mint = await checkDRepRegistration(req.body);
@@ -86,6 +118,61 @@ app.post("/api/register", express.json(), async (req: any, res: any) => {
 });
 
 // Route to find DRep
+/**
+ * @swagger
+ * /api/drep:
+ *   get:
+ *     summary: Retrieve DRep metadata
+ *     description: Find and retrieve metadata for a DRep based on either its ID or name.
+ *     parameters:
+ *       - in: query
+ *         name: id
+ *         schema:
+ *           type: string
+ *         description: The ID of the DRep (optional).
+ *       - in: query
+ *         name: name
+ *         schema:
+ *           type: string
+ *         description: The name of the DRep (optional).
+ *     responses:
+ *       200:
+ *         description: DRep metadata found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 dRep:
+ *                   type: object
+ *                   nullable: true
+ *                   description: DRep On-chain Metadata.
+ *                 token:
+ *                   type: object
+ *                   nullable: true
+ *                   description: DRep Token Metadata.
+ *               example:
+ *                 dRep:
+ *                   drep_id: "drep1qpuw066kgawne88u0ukl0tfxhuxpclu7kvvgzvcdachgczhyd7x"
+ *                   hex: "0078e7eb56475d3c9cfc7f2df7ad26bf0c1c7f9eb31881330dee2e8c"
+ *                   url: "https://metadata-govtool.cardanoapi.io/data/Walter"
+ *                   hash: "d8ecec10913aa85256d9ffb665efa4f740adb4edd345e6e0df07e97046388549"
+ *                 token:
+ *                  name: "JOHN CENA"
+ *                  drepId: "drep1qpuw066kgawne88u0ukl0tfxhuxpclu7kvvgzvcdachgczhyd7x"
+ *                  image: "https://bit.ly/3xpjbJ9"
+ *                  mediaType: "image/jpeg"
+ *       400:
+ *         description: Bad request - Missing drepId or drepName in query.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Missing drepId or drepName in query
+ */
 app.get("/api/drep", async (req: any, res: any) => {
   try {
     const { id: drepId, name: drepName } = req.query;
@@ -205,13 +292,13 @@ async function checkDRepRegistration(req: Request) {
       const metadataAssetInfo = Object.keys(
         Object.fromEntries(metadataAssetMap)
       )[0];
-      const metadataAsset = metadataAssetMap.get(metadataAssetInfo).get("name");
-      const metadataAssetName = metadataAsset?.get("name");
+      const metadataAssetName = metadataAssetMap
+        .get(metadataAssetInfo)
+        .get("name");
       const validMetadataAssetName = Buffer.from(drepName, "hex").toString(
         "utf-8"
       );
-      const dRepId = metadataAsset?.get("drepId");
-
+      const dRepId = metadataAssetMap.get(metadataAssetInfo).get("drepId");
       if (
         !dRepId ||
         (dRepId.length != 56 && dRepId.length != 58) ||
