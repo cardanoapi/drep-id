@@ -19,6 +19,11 @@ type BlockfrostPolicy = {
   quantity: string;
 };
 
+type DRepMetadata = {
+  dRep: Record<any, any> | null;
+  token: Record<any, any> | null;
+};
+
 export async function fetchAssetData(assetId: string) {
   try {
     const response = await apiClient.get(`api/v0/assets/${assetId}`);
@@ -44,49 +49,61 @@ export async function fetchUTxOData(address: string) {
   } catch (error: any) {}
 }
 
+export async function fetchDrepMetadata(dRepId: string) {
+  try {
+    const drepMetadataBlockfrost: any = await apiClient.get(
+      `/api/v0/governance/dreps/${dRepId}/metadata`
+    );
+    return drepMetadataBlockfrost.data;
+  } catch (error: any) {
+    console.error(
+      `Error fetching DRep Metadata for ID ${dRepId} from Blockfrost: ${error.message}`
+    );
+    return null;
+  }
+}
+
 export async function findDrepMetadata(dRep: Drep) {
   try {
-    if (POLICY) {
-      let policy = POLICY;
-      const response = await apiClient.get(`api/v0/assets/policy/${policy}`);
-      const policyInfo = response.data;
-      const assets = policyInfo.map((policy: BlockfrostPolicy) => policy.asset);
+    if (!POLICY) {
+      throw new Error("Missing environment variable: POLICY");
+    }
 
-      const assetMetadata = await Promise.all(
+    const policy = POLICY;
+    const response = await apiClient.get(`/api/v0/assets/policy/${policy}`);
+    const policyInfo = response.data;
+
+    // Extract asset data from the policy
+    const assets = policyInfo.map((policy: BlockfrostPolicy) => policy.asset);
+
+    // Fetch metadata for all assets and filter out nulls
+    const assetMetadata = (
+      await Promise.all(
         assets.map(async (asset: string) => {
           const assetInfo: any = await fetchAssetData(asset);
-          if (assetInfo.data.onchain_metadata) {
-            return assetInfo.data.onchain_metadata;
-          }
-          return null;
+          return assetInfo.data.onchain_metadata || null;
         })
-      );
-      const filteredMetadata = assetMetadata.filter(Boolean);
-      const drepMetadata: any[] = [];
-      if ("id" in dRep) {
-        const drepMetadataBlockfrost: any = await apiClient.get(
-          `/api/v0/governance/dreps/${dRep.id}/metadata`
-        );
-        drepMetadata.push(drepMetadataBlockfrost.data);
-      }
-      filteredMetadata.forEach((md) => {
-        if ("id" in dRep) {
-          if (md.drepId == dRep.id) {
-            drepMetadata.push(md);
-          }
-        }
-        if ("name" in dRep) {
-          if (md.name == dRep.name) {
-            drepMetadata.push(md);
-          }
-        }
-      });
-      return drepMetadata;
-    } else {
-      ERR.MissingEnvVariable("POLICY");
+      )
+    ).filter(Boolean); // Remove null/undefined metadata
+    // Initialize the dRepMetadata object
+    const drepMetadata: DRepMetadata = { dRep: null, token: null };
+    // Fetch DRep metadata if `id` exists
+    if ("id" in dRep) {
+      drepMetadata.dRep = await fetchDrepMetadata(dRep.id);
     }
-  } catch (error) {
-    console.error("Error fetching policy data:", error);
-    throw error;
+    // Process filtered metadata
+    for (const md of assetMetadata) {
+      if ("id" in dRep && md.drepId === dRep.id) {
+        drepMetadata.token = md;
+        break;
+      } else if ("name" in dRep && md.name === dRep.name) {
+        drepMetadata.token = md;
+        break;
+      }
+    }
+    return drepMetadata;
+  } catch (error: any) {
+    console.error("Error fetching DRep metadata:", error);
+    throw new Error(`Error fetching DRep metadata: ${error.message}`);
   }
 }

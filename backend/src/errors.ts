@@ -26,7 +26,7 @@ export function InvalidField() {
   throw new Error(`Encountered Invalid Tx Fields`);
 }
 
-export function PlatformNotPaid(address: string) {
+export function TreasuryNotPaid(address: string) {
   throw new Error(`Please make a contribution of atlease 1 Ada to ${address}`);
 }
 
@@ -49,7 +49,9 @@ export function InvalidPolicyInMetadata(expected: string, got: string) {
 }
 
 export function InvalidMetadataAssetName(asset_name: string, name: string) {
-  throw new Error(`Expected Same Assetname. Either ${asset_name} or ${name}`);
+  throw new Error(
+    `Invalid Metadata Name. Expected: ${asset_name}; Got: ${name}`
+  );
 }
 
 export function MissingDRepId() {
@@ -57,9 +59,9 @@ export function MissingDRepId() {
 }
 
 export function InvalidDrepId() {
-  throw new Error(`Invalid drepId in Metadata`);
+  throw new Error(`Invalid or Missing foeld "drepId" in Metadata`);
 }
 
-export function MissingEnvVariable(env: string){
+export function MissingEnvVariable(env: string) {
   throw new Error(`Missing environment variable: ${env}`);
 }
